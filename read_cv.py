@@ -62,6 +62,7 @@ def analizar_cv_para_busqueda(texto_cv):
     FORMATO JSON ESPERADO:
     {{
         "keywords": "String con la query booleana optimizada. NO uses terminos como Seniority en la query si reduce mucho los resultados. Hazla amplia pero relevante.",
+        "keyword_list": ["Lista de 5-7 strings con las palabras clave más importantes (tecnologías o roles) para filtrado simple. Ej: 'Python', 'React', 'AWS'"],
         
         "target_locations": [
             "Lista de strings con las 10 mejores ubicaciones para buscar. LATAM SIEMPRE DEBE SER LA PRIMERA OPCION POR FAVOR",

@@ -1,3 +1,4 @@
+import os
 import requests
 import html
 import re
@@ -76,14 +77,25 @@ def filtrar_oferta_hn(oferta, keywords, red_flags):
         if flag in texto:
             return False
             
-    # 3. Filtro de Keywords del usuario (Python, React, etc)
-    # Convertimos "Python OR Django" en una lista simple para buscar
-    # Aquí hacemos una búsqueda simple: si tiene AL MENOS UNA de las keywords importantes
-    keywords_clean = [k.strip().lower() for k in keywords.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split()]
+    # 3. Filtro de Keywords
+    # Si tenemos una lista limpia del CV (Adapter), la usamos. Si no, parseamos el string booleano.
+    keywords_clean = []
+    
+    if isinstance(keywords, list):
+        keywords_clean = [k.strip().lower() for k in keywords]
+    elif isinstance(keywords, str):
+         keywords_clean = [k.strip().lower() for k in keywords.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split()]
     
     # Si la lista de keywords está vacía, pasa. Si no, verificamos coincidencia.
     if keywords_clean:
-        if not any(k in texto for k in keywords_clean if len(k) > 2): # Ignoramos palabras muy cortas
+        # Buscamos coincidencias exactas o parciales
+        found = False
+        for k in keywords_clean:
+            if len(k) > 2 and k in texto:
+                found = True
+                break
+        
+        if not found:
             return False
 
     return True
@@ -94,7 +106,10 @@ def buscar_ofertas_hackernews(filtros_json):
     """
     print("\n🍊 INICIANDO MOTOR HACKER NEWS (La Cueva de los Ingenieros)...")
     
-    keywords = filtros_json.get("keywords", "")
+    # Adapter: Intentamos usar la lista limpia, si no, el string antiguo
+    keywords = filtros_json.get("keyword_list", [])
+    if not keywords:
+        keywords = filtros_json.get("keywords", "")
     
     # Definimos Red Flags específicas para texto libre
     red_flags = [
@@ -145,7 +160,31 @@ def buscar_ofertas_hackernews(filtros_json):
 
     print(f"   💎 Se encontraron {len(ofertas_crudas)} ofertas potenciales en HN después del filtrado básico.")
     
+    # 4. Guardado Automático
+    guardar_en_archivo(ofertas_crudas)
+    
     return ofertas_crudas
+
+def guardar_en_archivo(ofertas):
+    if not ofertas:
+        print("⚠️ No hay ofertas de HN para guardar.")
+        return
+
+    # Ruta consistente con el módulo de LinkedIn
+    ruta_base = "/Users/josemiguelrozobaez/documents/develop/agent-offers/"
+    os.makedirs(ruta_base, exist_ok=True)
+    
+    # Prefijo HN para distinguir
+    nombre_archivo = "HN_" + datetime.now().strftime("%d%b%H%M") + ".json"
+    ruta_completa = os.path.join(ruta_base, nombre_archivo)
+    
+    try:
+        with open(ruta_completa, 'w', encoding='utf-8') as f:
+            json.dump(ofertas, f, indent=4, ensure_ascii=False)
+        print(f"\n💾 ARCHIVO HN GUARDADO EXITOSAMENTE:")
+        print(f"   📂 {ruta_completa}")
+    except Exception as e:
+        print(f"❌ Error guardando archivo HN: {e}")
 
 # --- TEST ---
 if __name__ == "__main__":

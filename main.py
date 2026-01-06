@@ -1,8 +1,13 @@
-
 import os
+import sys
 import json
 from read_cv import procesar_cv, CV_FILE_PATH
 from linkedin_offers import buscar_ofertas_desde_json
+# INTEGRACIÓN: Importamos el módulo de Hacker News
+sys.path.append(os.path.dirname(os.path.abspath(__file__))) # Asegurar path
+from importlib import import_module
+hacker_news = import_module("hacker-news")
+buscar_ofertas_hackernews = hacker_news.buscar_ofertas_hackernews
 
 def main():
     print("🚀 INICIANDO AGENTE DE BÚSQUEDA DE EMPLEO v1.0")
@@ -23,9 +28,18 @@ def main():
     print("\n✅ Filtros generados con éxito:")
     print(json.dumps(filtros, indent=2, ensure_ascii=False))
 
-    # 2. Buscar ofertas en LinkedIn
-    print("\n[Paso 2] Buscando ofertas en LinkedIn...")
-    ofertas = buscar_ofertas_desde_json(filtros)
+    # 2. Buscar ofertas (SELECCIONAR MOTOR)
+    ofertas = []
+    
+    # --- MOTOR 1: LINKEDIN (COMENTADO POR AHORA) ---
+    # print("\n[Paso 2] Buscando ofertas en LinkedIn...")
+    # ofertas_linkedin = buscar_ofertas_desde_json(filtros)
+    # ofertas.extend(ofertas_linkedin)
+    
+    # --- MOTOR 2: HACKER NEWS ---
+    print("\n[Paso 2] Buscando ofertas en Hacker News...")
+    ofertas_hn = buscar_ofertas_hackernews(filtros)
+    ofertas.extend(ofertas_hn)
     
     print("\n\n🎉 RESUMEN FINAL")
     print("=============================================")
@@ -42,4 +56,5 @@ def main():
         print(f"   🔗 {url}")
 
 if __name__ == "__main__":
+    import sys
     main()
