@@ -3,6 +3,8 @@ import os
 import json
 import google.generativeai as genai
 from pypdf import PdfReader
+import time
+import hashlib
 from dotenv import load_dotenv
 
 # Configuración inicial (Solo carga si se ejecuta este archivo, o se re-configura al importar)
@@ -103,15 +105,41 @@ def analizar_cv_para_busqueda(texto_cv):
     print("❌ Se agotaron los reintentos. No se pudo analizar el CV.")
     return {}
 
+def calculate_file_hash(filepath):
+    """Calcula el MD5 del archivo para detectar cambios."""
+    hasher = hashlib.md5()
+    with open(filepath, 'rb') as f:
+        buf = f.read()
+        hasher.update(buf)
+    return hasher.hexdigest()
+
 def procesar_cv(ruta_cv):
     """
     Función principal para orquestar la lectura y análisis del CV.
-    Retorna el diccionario con los filtros de búsqueda o None si falla.
+    Utiliza caché para evitar llamadas redundantes a la API.
     """
     if not os.path.exists(ruta_cv):
         print(f"⚠️ No encontré '{ruta_cv}'.")
         return None
 
+    # --- 1. Lógica de Caché ---
+    cache_dir = "/Users/josemiguelrozobaez/documents/develop/agent-offers"
+    cache_file = os.path.join(cache_dir, "cv_analysis_cache.json")
+    
+    current_hash = calculate_file_hash(ruta_cv)
+    filtros_cachados = None
+    
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+                if cache_data.get("file_hash") == current_hash:
+                    print("⚡ CACHÉ DETECTADO: El CV no ha cambiado. Usando filtros guardados.")
+                    return cache_data.get("filters")
+        except Exception as e:
+            print(f"⚠️ Error leyendo caché: {e}")
+
+    # --- 2. Análisis Real (Si no hay caché válido) ---
     print(f"📖 Leyendo PDF: {ruta_cv}...")
     texto = extraer_texto_pdf(ruta_cv)
     
@@ -123,6 +151,22 @@ def procesar_cv(ruta_cv):
     print("🧠 Enviando a Gemini para perfilado universal...")
     
     parametros = analizar_cv_para_busqueda(texto)
+    
+    # --- 3. Guardar en Caché ---
+    if parametros:
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_payload = {
+                "file_hash": current_hash,
+                "filters": parametros,
+                "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_payload, f, indent=4, ensure_ascii=False)
+            print(f"💾 Filtros guardados en caché: {cache_file}")
+        except Exception as e:
+             print(f"⚠️ No se pudo guardar caché: {e}")
+             
     return parametros
 
 # --- BLOQUE DE PRUEBA (Para correrlo solo) ---
