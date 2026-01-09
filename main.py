@@ -8,6 +8,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))) # Asegurar path
 from importlib import import_module
 hacker_news = import_module("hacker-news")
 buscar_ofertas_hackernews = hacker_news.buscar_ofertas_hackernews
+wwr = import_module("wwr")
+buscar_ofertas_wwr = wwr.buscar_ofertas_wwr
 
 def main():
     print("🚀 INICIANDO AGENTE DE BÚSQUEDA DE EMPLEO v1.0")
@@ -37,9 +39,14 @@ def main():
     # ofertas.extend(ofertas_linkedin)
     
     # --- MOTOR 2: HACKER NEWS ---
-    print("\n[Paso 2] Buscando ofertas en Hacker News...")
+    print("\n[Paso 2b] Buscando ofertas en Hacker News...")
     ofertas_hn = buscar_ofertas_hackernews(filtros)
     ofertas.extend(ofertas_hn)
+    
+    # --- MOTOR 3: WE WORK REMOTELY ---
+    print("\n[Paso 2c] Buscando ofertas en We Work Remotely...")
+    ofertas_wwr = buscar_ofertas_wwr(filtros)
+    ofertas.extend(ofertas_wwr)
     
     print("\n\n🎉 RESUMEN FINAL")
     print("=============================================")

@@ -1,6 +1,9 @@
 import feedparser
 import time
 import re
+import os
+import json
+from datetime import datetime
 
 # --- CONFIGURACIÓN DE FUENTES WWR ---
 # WWR divide sus ofertas por categorías en RSS separados.
@@ -23,9 +26,13 @@ def buscar_ofertas_wwr(filtros_json):
     """
     print("\n📡 INICIANDO MOTOR WE WORK REMOTELY (Vía RSS)...")
     
-    keywords = filtros_json.get("keywords", "").lower()
-    # Convertimos keywords en lista para búsqueda simple
-    lista_keywords = [k.strip() for k in keywords.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split() if len(k) > 2]
+    # ADAPTER: Usamos la lista limpia si existe (Mejor práctica)
+    lista_keywords = filtros_json.get("keyword_list", [])
+    
+    # Fallback: Si no hay lista, intentamos limpiar el string antiguo
+    if not lista_keywords:
+        keywords = filtros_json.get("keywords", "").lower()
+        lista_keywords = [k.strip() for k in keywords.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split() if len(k) > 2]
     
     ofertas_encontradas = []
 
@@ -73,7 +80,30 @@ def buscar_ofertas_wwr(filtros_json):
             print(f"      ❌ Error procesando feed: {e}")
 
     print(f"   ✅ Se encontraron {len(ofertas_encontradas)} ofertas potenciales en WWR.")
+    
+    # Guardado automático
+    guardar_en_archivo(ofertas_encontradas)
+    
     return ofertas_encontradas
+
+def guardar_en_archivo(ofertas):
+    if not ofertas:
+        return
+
+    # Ruta consistente
+    ruta_base = "/Users/josemiguelrozobaez/documents/develop/agent-offers/"
+    os.makedirs(ruta_base, exist_ok=True)
+    
+    # Prefijo WWR
+    nombre_archivo = "WWR_" + datetime.now().strftime("%d%b%H%M") + ".json"
+    ruta_completa = os.path.join(ruta_base, nombre_archivo)
+    
+    try:
+        with open(ruta_completa, 'w', encoding='utf-8') as f:
+            json.dump(ofertas, f, indent=4, ensure_ascii=False)
+        print(f"\n💾 ARCHIVO WWR GUARDADO: {ruta_completa}")
+    except Exception as e:
+        print(f"❌ Error guardando WWR: {e}")
 
 # --- TEST ---
 if __name__ == "__main__":
