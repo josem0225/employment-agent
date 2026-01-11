@@ -169,6 +169,11 @@ def guardar_en_archivo(ofertas):
 def buscar_ofertas_desde_json(filtros_json):
     print("\n🚀 INICIANDO PROCESO BATCH (SOLO LINKEDIN)")
     
+    # IMPORTAR GESTOR DE HISTORIAL
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from utils import JobHistoryManager
+    history = JobHistoryManager()
+
     keywords = filtros_json.get("keywords", "")
     locations = filtros_json.get("target_locations", ["Remote"])
     is_remote = filtros_json.get("is_remote", True)
@@ -195,12 +200,20 @@ def buscar_ofertas_desde_json(filtros_json):
     # 2. LIMPIEZA & PRE-FILTRO
     ofertas_unicas = limpiar_y_deduplicar(todas_las_ofertas_crudas)
     ofertas_candidatas = pre_filtro_palabras_clave(ofertas_unicas)
+    
+    # --- DEDUPLICACIÓN HISTÓRICA ---
+    ofertas_nuevas = history.filter_new_offers(ofertas_candidatas)
+    print(f"   🤏 De {len(ofertas_candidatas)} candidatas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
+    
+    if not ofertas_nuevas:
+        print("🤷‍♂️ No hay ofertas nuevas por ahora.")
+        return []
 
-    # 3. ANÁLISIS IA
-    print(f"\n🧠 Iniciando Análisis IA sobre {len(ofertas_candidatas)} ofertas...")
+    # 3. ANÁLISIS IA (Solo sobre las nuevas)
+    print(f"\n🧠 Iniciando Análisis IA sobre {len(ofertas_nuevas)} ofertas...")
     ofertas_finales = []
     
-    for oferta in ofertas_candidatas:
+    for oferta in ofertas_nuevas:
         es_viable = analizar_viabilidad_oferta(oferta)
         if es_viable:
             ofertas_finales.append(oferta)
@@ -208,7 +221,9 @@ def buscar_ofertas_desde_json(filtros_json):
 
     # 4. GUARDADO FINAL
     print(f"\n🎉 PROCESO TERMINADO: {len(ofertas_finales)} ofertas válidas.")
-    guardar_en_archivo(ofertas_finales)
+    
+    # Guardamos en el historial global
+    history.save_offers(ofertas_finales)
     
     return ofertas_finales
 

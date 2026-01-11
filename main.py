@@ -10,6 +10,8 @@ hacker_news = import_module("hacker-news")
 buscar_ofertas_hackernews = hacker_news.buscar_ofertas_hackernews
 wwr = import_module("wwr")
 buscar_ofertas_wwr = wwr.buscar_ofertas_wwr
+remote_ok = import_module("remote-ok")
+buscar_ofertas_remoteok = remote_ok.buscar_ofertas_remoteok
 
 def main():
     print("🚀 INICIANDO AGENTE DE BÚSQUEDA DE EMPLEO v1.0")
@@ -33,10 +35,7 @@ def main():
     # 2. Buscar ofertas (SELECCIONAR MOTOR)
     ofertas = []
     
-    # --- MOTOR 1: LINKEDIN (COMENTADO POR AHORA) ---
-    # print("\n[Paso 2] Buscando ofertas en LinkedIn...")
-    # ofertas_linkedin = buscar_ofertas_desde_json(filtros)
-    # ofertas.extend(ofertas_linkedin)
+    
     
     # --- MOTOR 2: HACKER NEWS ---
     print("\n[Paso 2b] Buscando ofertas en Hacker News...")
@@ -47,6 +46,16 @@ def main():
     print("\n[Paso 2c] Buscando ofertas en We Work Remotely...")
     ofertas_wwr = buscar_ofertas_wwr(filtros)
     ofertas.extend(ofertas_wwr)
+
+    # --- MOTOR 4: REMOTE OK ---
+    print("\n[Paso 2d] Buscando ofertas en RemoteOK...")
+    ofertas_rok = buscar_ofertas_remoteok(filtros)
+    ofertas.extend(ofertas_rok)
+
+    # --- MOTOR 1: LINKEDIN (COMENTADO POR AHORA) ---
+    print("\n[Paso 2] Buscando ofertas en LinkedIn...")
+    ofertas_linkedin = buscar_ofertas_desde_json(filtros)
+    ofertas.extend(ofertas_linkedin)
     
     print("\n\n🎉 RESUMEN FINAL")
     print("=============================================")

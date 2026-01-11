@@ -160,10 +160,20 @@ def buscar_ofertas_hackernews(filtros_json):
 
     print(f"   💎 Se encontraron {len(ofertas_crudas)} ofertas potenciales en HN después del filtrado básico.")
     
-    # 4. Guardado Automático
-    guardar_en_archivo(ofertas_crudas)
+    # 4. Deduplicación Histórica y Guardado
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from utils import JobHistoryManager
+    history = JobHistoryManager()
     
-    return ofertas_crudas
+    ofertas_nuevas = history.filter_new_offers(ofertas_crudas)
+    print(f"   🤏 De {len(ofertas_crudas)} candidatas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
+    
+    if ofertas_nuevas:
+        history.save_offers(ofertas_nuevas)
+    else:
+        print("🤷‍♂️ No hay ofertas nuevas de HN.")
+
+    return ofertas_nuevas
 
 def guardar_en_archivo(ofertas):
     if not ofertas:
