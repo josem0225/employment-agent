@@ -12,6 +12,8 @@ wwr = import_module("wwr")
 buscar_ofertas_wwr = wwr.buscar_ofertas_wwr
 remote_ok = import_module("remote-ok")
 buscar_ofertas_remoteok = remote_ok.buscar_ofertas_remoteok
+ycombinator = import_module("ycombinator")
+buscar_ofertas_yc = ycombinator.buscar_ofertas_yc
 
 def main():
     print("🚀 INICIANDO AGENTE DE BÚSQUEDA DE EMPLEO v1.0")
@@ -51,6 +53,11 @@ def main():
     print("\n[Paso 2d] Buscando ofertas en RemoteOK...")
     ofertas_rok = buscar_ofertas_remoteok(filtros)
     ofertas.extend(ofertas_rok)
+    
+    # --- MOTOR 5: Y COMBINATOR ---
+    print("\n[Paso 2e] Buscando ofertas en Y Combinator Jobs...")
+    ofertas_yc = buscar_ofertas_yc(filtros)
+    ofertas.extend(ofertas_yc)
 
     # --- MOTOR 1: LINKEDIN (COMENTADO POR AHORA) ---
     print("\n[Paso 2] Buscando ofertas en LinkedIn...")
