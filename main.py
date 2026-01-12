@@ -14,6 +14,8 @@ remote_ok = import_module("remote-ok")
 buscar_ofertas_remoteok = remote_ok.buscar_ofertas_remoteok
 ycombinator = import_module("ycombinator")
 buscar_ofertas_yc = ycombinator.buscar_ofertas_yc
+wellfound = import_module("wellfound")
+buscar_ofertas_wellfound = wellfound.buscar_ofertas_wellfound
 
 def main():
     print("🚀 INICIANDO AGENTE DE BÚSQUEDA DE EMPLEO v1.0")
@@ -58,6 +60,11 @@ def main():
     print("\n[Paso 2e] Buscando ofertas en Y Combinator Jobs...")
     ofertas_yc = buscar_ofertas_yc(filtros)
     ofertas.extend(ofertas_yc)
+    
+    # --- MOTOR 6: WELLFOUND ---
+    print("\n[Paso 2f] Buscando ofertas en Wellfound...")
+    ofertas_wf = buscar_ofertas_wellfound(filtros)
+    ofertas.extend(ofertas_wf)
 
     # --- MOTOR 1: LINKEDIN (COMENTADO POR AHORA) ---
     print("\n[Paso 2] Buscando ofertas en LinkedIn...")

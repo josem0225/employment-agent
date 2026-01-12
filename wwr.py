@@ -2,7 +2,9 @@ import feedparser
 import time
 import re
 import os
+import sys
 import json
+import requests
 from datetime import datetime
 
 # --- CONFIGURACIÓN DE FUENTES WWR ---
@@ -62,7 +64,7 @@ def buscar_ofertas_wwr(filtros_json):
                 
                 # Si definiste keywords, verificamos que tenga al menos una
                 if lista_keywords:
-                    if not any(k in texto_completo for k in lista_keywords):
+                    if not any(k.lower() in texto_completo for k in lista_keywords):
                         continue
                 
                 # Empaquetamos para que sea idéntico a los otros motores
@@ -83,11 +85,14 @@ def buscar_ofertas_wwr(filtros_json):
     
     # 3. Deduplicación Histórica y Guardado
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from utils import JobHistoryManager
+    from utils import JobHistoryManager, filtrar_por_ubicacion_estricta
     history = JobHistoryManager()
     
-    ofertas_nuevas = history.filter_new_offers(ofertas_encontradas)
-    print(f"   🤏 De {len(ofertas_encontradas)} candidatas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
+    # NUEVO: Filtro Estricto de Ubicación
+    ofertas_geo_validas = filtrar_por_ubicacion_estricta(ofertas_encontradas)
+    
+    ofertas_nuevas = history.filter_new_offers(ofertas_geo_validas)
+    print(f"   🤏 De {len(ofertas_geo_validas)} candidatas geo-validas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
     
     if ofertas_nuevas:
         history.save_offers(ofertas_nuevas)

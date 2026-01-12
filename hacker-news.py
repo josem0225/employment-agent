@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import html
 import re
@@ -162,11 +163,14 @@ def buscar_ofertas_hackernews(filtros_json):
     
     # 4. Deduplicación Histórica y Guardado
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from utils import JobHistoryManager
+    from utils import JobHistoryManager, filtrar_por_ubicacion_estricta
     history = JobHistoryManager()
     
-    ofertas_nuevas = history.filter_new_offers(ofertas_crudas)
-    print(f"   🤏 De {len(ofertas_crudas)} candidatas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
+    # NUEVO: Filtro Estricto de Ubicación
+    ofertas_geo_validas = filtrar_por_ubicacion_estricta(ofertas_crudas)
+
+    ofertas_nuevas = history.filter_new_offers(ofertas_geo_validas)
+    print(f"   🤏 De {len(ofertas_geo_validas)} candidatas geo-validas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
     
     if ofertas_nuevas:
         history.save_offers(ofertas_nuevas)

@@ -1,6 +1,7 @@
 from jobspy import scrape_jobs
 import pandas as pd
 import os
+import sys
 import json
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -171,7 +172,7 @@ def buscar_ofertas_desde_json(filtros_json):
     
     # IMPORTAR GESTOR DE HISTORIAL
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from utils import JobHistoryManager
+    from utils import JobHistoryManager, filtrar_por_ubicacion_estricta
     history = JobHistoryManager()
 
     keywords = filtros_json.get("keywords", "")
@@ -222,10 +223,13 @@ def buscar_ofertas_desde_json(filtros_json):
     # 4. GUARDADO FINAL
     print(f"\n🎉 PROCESO TERMINADO: {len(ofertas_finales)} ofertas válidas.")
     
-    # Guardamos en el historial global
-    history.save_offers(ofertas_finales)
+    # IMPORTANTE: Limpiar NaNs antes de guardar
+    ofertas_limpias = sanitizar_datos(ofertas_finales)
     
-    return ofertas_finales
+    # Guardamos en el historial global
+    history.save_offers(ofertas_limpias)
+    
+    return ofertas_limpias
 
 # --- TEST ---
 if __name__ == "__main__":

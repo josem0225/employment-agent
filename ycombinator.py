@@ -118,11 +118,14 @@ def buscar_ofertas_yc(filtros_json):
     # --- DEDUPLICACIÓN Y GUARDADO ---
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     try:
-        from utils import JobHistoryManager
+        from utils import JobHistoryManager, filtrar_por_ubicacion_estricta
         history = JobHistoryManager()
         
-        ofertas_nuevas = history.filter_new_offers(ofertas_encontradas)
-        print(f"   🤏 De {len(ofertas_encontradas)} candidatas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
+        # NUEVO: Filtro Estricto de Ubicación
+        ofertas_geo_validas = filtrar_por_ubicacion_estricta(ofertas_encontradas)
+        
+        ofertas_nuevas = history.filter_new_offers(ofertas_geo_validas)
+        print(f"   🤏 De {len(ofertas_geo_validas)} candidatas geo-validas, {len(ofertas_nuevas)} son NUEVAS en el historial.")
         
         if ofertas_nuevas:
             history.save_offers(ofertas_nuevas)
