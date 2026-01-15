@@ -32,4 +32,4 @@ Thumbs.db
 # Database (if you use SQLite)
 *.sqlite3
 *.db
-EOF
+EOF.env

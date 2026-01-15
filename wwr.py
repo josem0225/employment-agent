@@ -64,7 +64,7 @@ def buscar_ofertas_wwr(filtros_json):
                 
                 # Si definiste keywords, verificamos que tenga al menos una
                 if lista_keywords:
-                    if not any(k.lower() in texto_completo for k in lista_keywords):
+                    if not any(k in texto_completo for k in lista_keywords):
                         continue
                 
                 # Empaquetamos para que sea idéntico a los otros motores

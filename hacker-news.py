@@ -62,14 +62,25 @@ def fetch_comment_details(comment_id):
     except:
         return None
 
-def filtrar_oferta_hn(oferta, keywords, red_flags):
+def filtrar_oferta_hn(oferta, keywords, red_flags, filtros_extra={}):
     """
     Aplica filtros de texto básicos (Keywords y Red Flags).
     """
     texto = oferta['text'].lower()
     
     # 1. Filtro "Remote" (Obligatorio en nuestra estrategia)
-    # HN suele poner "REMOTE" al inicio. Buscamos variantes.
+    # 1. Filtro "Remote" MEJORADO (Anti-Falsos Positivos)
+    # Primero buscamos DEALBREAKERS explicitos que indican presencialidad
+    dealbreakers = [
+        r"\bno remote\b", r"\bnot remote\b", r"\bonsite only\b", 
+        r"\boffice based\b", r"\bhybrid only\b", r"\bmust be in\b"
+    ]
+    
+    for db in dealbreakers:
+        if re.search(db, texto):
+            return False
+
+    # Luego validamos que DIGA remote
     if "remote" not in texto:
         return False
 
@@ -78,8 +89,25 @@ def filtrar_oferta_hn(oferta, keywords, red_flags):
         if flag in texto:
             return False
             
-    # 3. Filtro de Keywords
-    # Si tenemos una lista limpia del CV (Adapter), la usamos. Si no, parseamos el string booleano.
+    # 3. Filtro de ROLES (Identidad) - "MUST HAVE"
+    # Si definimos roles explícitos (ej: "Product Manager"), la oferta DEBE tener al menos uno.
+    role_keywords = filtros_extra.get('role_keywords', [])
+    if role_keywords:
+        role_found = False
+        for role in role_keywords:
+            # Búsqueda de palabra completa para evitar falsos positivos parciales (ej: "Manager" en "Managerial")
+            # Usamos boundaries \b si es posible, o in simple.
+            # Dado que los roles pueden ser "Product Manager", 'in' está bien.
+            if role.lower() in texto:
+                role_found = True
+                break
+        
+        if not role_found:
+             return False
+
+    # 4. Filtro de SKILLS (Herramientas) - "NICE TO HAVE" / Validación Secundaria
+    # Ya sabemos que es el ROL correcto, ahora vemos si usa las TECNOLOGÍAS correctas.
+    # Si la lista de keywords está vacía, pasa. Si no, verificamos coincidencia.
     keywords_clean = []
     
     if isinstance(keywords, list):
@@ -87,17 +115,15 @@ def filtrar_oferta_hn(oferta, keywords, red_flags):
     elif isinstance(keywords, str):
          keywords_clean = [k.strip().lower() for k in keywords.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split()]
     
-    # Si la lista de keywords está vacía, pasa. Si no, verificamos coincidencia.
     if keywords_clean:
-        # Buscamos coincidencias exactas o parciales
-        found = False
-        for k in keywords_clean:
-            if len(k) > 2 and k in texto:
-                found = True
-                break
-        
-        if not found:
-            return False
+         found = False
+         for k in keywords_clean:
+             if len(k) > 1 and k in texto: # len > 1 para evitar "C" o "R" sueltos falsos
+                 found = True
+                 break
+         
+         if not found:
+             return False
 
     return True
 
@@ -148,7 +174,7 @@ def buscar_ofertas_hackernews(filtros_json):
             result = future.result()
             if result:
                 # Filtrado preliminar inmediato para no guardar basura
-                if filtrar_oferta_hn(result, keywords, red_flags):
+                if filtrar_oferta_hn(result, keywords, red_flags, filtros_json):
                     # Formateamos para que parezca una oferta estandarizada
                     ofertas_crudas.append({
                         "title": f"HN Offer by {result['by']}", # HN no tiene títulos, usamos el autor

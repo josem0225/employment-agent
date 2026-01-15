@@ -15,7 +15,9 @@ if api_key:
     # Usamos el modelo rápido y capaz que ya validamos
     model = genai.GenerativeModel('gemini-flash-latest')
 
-CV_FILE_PATH = r"/Users/josemiguelrozobaez/downloads/cvJose.pdf"
+CV_FILE_PATH = r"/Users/josemiguelrozobaez/downloads/xime2.pdf"
+# CV_FILE_PATH = r"/Users/josemiguelrozobaez/downloads/cvJose.pdf"
+
 
 def extraer_texto_pdf(ruta_pdf):
     """
@@ -59,12 +61,16 @@ def analizar_cv_para_busqueda(texto_cv):
     2. Si el perfil habla inglés: Prioriza países angloparlantes.
     3. Si el perfil habla solo español: Prioriza "Spain", "LATAM" y "Remote".
     4. El objetivo es encontrar empresas dispuestas a contratar talento de LATAM/Extranjero.
-    5. NO agregues keywords de Relocation en la query principal (lo filtraremos despues).
+    REGLAS PARA KEYWORDS:
+    1. "role_keywords" (INDENTIDAD): Deben ser TÍTULOS de cargo. Ej: "Product Manager", "Project Manager", "Product Owner".
+    2. "tech_keywords" (HERRAMIENTAS): Skills técnicas. Ej: "Jira", "SQL", "Agile".
+    3. SEPARA ESTRICTAMENTE. No pongas skills en role_keywords.
 
     FORMATO JSON ESPERADO:
     {{
-        "keywords": "String con la query booleana optimizada. NO uses terminos como Seniority en la query si reduce mucho los resultados. Hazla amplia pero relevante.",
-        "keyword_list": ["Lista de 5-7 strings con las palabras clave más importantes (tecnologías o roles) para filtrado simple. Ej: 'Python', 'React', 'AWS'"],
+        "keywords": "String con la query booleana optimizada (mezcla de roles y skills clave).",
+        "role_keywords": ["Lista de 3-5 strings OBLIGATORIOS que definen el rol. Ej: 'Product Manager', 'Project Manager'"],
+        "keyword_list": ["Lista de 5-7 strings con skills/tecnologías para filtrado secundario (tech_keywords). Ej: 'Jira', 'SQL', 'Python'"],
         
         "target_locations": [
             "Lista de strings con las 10 mejores ubicaciones para buscar. LATAM SIEMPRE DEBE SER LA PRIMERA OPCION POR FAVOR",
@@ -85,11 +91,28 @@ def analizar_cv_para_busqueda(texto_cv):
     Devuelve SOLO el JSON.
     """
 
+    # Configuración de Seguridad para evitar bloqueos por falsos positivos en CVs
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+
     import time
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            response = model.generate_content(prompt)
+            response = model.generate_content(prompt, safety_settings=safety_settings)
+            
+            # Verificación robusta antes de acceder a .text
+            if not response.parts:
+                print(f"⚠️ Alerta: Gemini devolvió una respuesta vacía (Intento {attempt+1}). Finish Reason: {response.candidates[0].finish_reason if response.candidates else 'Unknown'}")
+                # Si falló por seguridad, a veces ayuda reintentar o imprimir feedback
+                if response.prompt_feedback:
+                    print(f"   Prompt Feedback: {response.prompt_feedback}")
+                continue
+
             # Limpieza de bloques de código markdown si Gemini los pone
             texto_limpio = response.text.replace("```json", "").replace("```", "").strip()
             return json.loads(texto_limpio)
@@ -100,7 +123,9 @@ def analizar_cv_para_busqueda(texto_cv):
                 time.sleep(wait_time)
             else:
                 print(f"❌ Error analizando con IA: {e}")
-                return {}
+                # No retornamos {} inmediatamente, intentamos de nuevo si quedan intentos
+                if attempt == max_retries - 1:
+                    return {}
     
     print("❌ Se agotaron los reintentos. No se pudo analizar el CV.")
     return {}

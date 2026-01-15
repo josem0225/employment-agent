@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, date
 
 # --- FILTROS DE UBICACIÓN STRICTOS (ZERO-TOKEN) ---
 def filtrar_por_ubicacion_estricta(ofertas):
@@ -70,6 +70,36 @@ def filtrar_por_ubicacion_estricta(ofertas):
     print(f"   🛡️ Filtro Geo: {len(ofertas)} -> {len(ofertas_validas)} ({descartadas} descartadas por restricción país)")
     return ofertas_validas
 
+# --- ENCODER PERSONALIZADO PARA JSON ---
+class CustomJSONEncoder(json.JSONEncoder):
+    """
+    Encoder robusto que maneja:
+    - Fechas (datetime/date) -> ISO format string
+    - NaNs / Infinite -> null (Estándar JSON)
+    - Sets -> Listas
+    """
+    def default(self, obj):
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        if isinstance(obj, set):
+            return list(obj)
+        # Pandas NaNs y NaTs
+        try:
+            import pandas as pd
+            if pd.isna(obj):
+                return None
+        except ImportError:
+            pass
+            
+        # Standard float NaN handling handled by json.dump usually via allow_nan=True but 
+        # we want strict JSON (null) not NaN
+        if isinstance(obj, float):
+             import math
+             if math.isnan(obj) or math.isinf(obj):
+                 return None
+                 
+        return super().default(obj)
+
 class JobHistoryManager:
     def __init__(self, history_file_path=None):
         if history_file_path is None:
@@ -90,7 +120,12 @@ class JobHistoryManager:
 
         try:
             with open(self.history_file, 'r', encoding='utf-8') as f:
-                history = json.load(f)
+                # Handle empty file or bad JSON
+                try:
+                    history = json.load(f)
+                except json.JSONDecodeError:
+                    history = []
+                
                 for offer in history:
                     url = offer.get('job_url')
                     if url:
@@ -110,12 +145,14 @@ class JobHistoryManager:
         return new_offers
 
     def save_offers(self, new_offers):
-        """Guarda las nuevas ofertas en el archivo maestro (Append logic)."""
+        """
+        Guarda las nuevas ofertas en el archivo maestro de forma ATÓMICA.
+        Evita corrupciones si se interrumpe la escritura.
+        """
         if not new_offers:
             return
 
-        # 1. Leemos todo el archivo actual (Para JSON standard es necesario)
-        # Ojo: Con millones de registros esto sería lento, pero para <50k está ok.
+        # 1. Leemos todo el archivo actual
         current_history = []
         if os.path.exists(self.history_file):
             try:
@@ -127,10 +164,16 @@ class JobHistoryManager:
         # 2. Agregamos lo nuevo
         current_history.extend(new_offers)
         
-        # 3. Reescribimos
+        # 3. Escritura Atómica (Write .tmp -> Rename)
+        temp_file = self.history_file + ".tmp"
         try:
-            with open(self.history_file, 'w', encoding='utf-8') as f:
-                json.dump(current_history, f, indent=4, ensure_ascii=False)
-            print(f"💾 {len(new_offers)} nuevas ofertas guardadas en el historial maestro.")
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                # Usamos el Encoder personalizado para sanar NaNs y Fechas
+                json.dump(current_history, f, indent=4, ensure_ascii=False, cls=CustomJSONEncoder)
+            
+            os.replace(temp_file, self.history_file)
+            print(f"💾 {len(new_offers)} nuevas ofertas guardadas SEGURO (Total: {len(current_history)}).")
         except Exception as e:
-            print(f"❌ Error guardando historial: {e}")
+            print(f"❌ Error CRÍTICO guardando historial: {e}")
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
