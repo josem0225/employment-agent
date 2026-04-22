@@ -64,66 +64,66 @@ def fetch_comment_details(comment_id):
 
 def filtrar_oferta_hn(oferta, keywords, red_flags, filtros_extra={}):
     """
-    Aplica filtros de texto básicos (Keywords y Red Flags).
+    Aplica filtros de texto sobre texto libre de HN.
+    Diseñado para ser universal: funciona para cualquier rol (dev, PM, data, design, etc.)
     """
     texto = oferta['text'].lower()
-    
-    # 1. Filtro "Remote" (Obligatorio en nuestra estrategia)
-    # 1. Filtro "Remote" MEJORADO (Anti-Falsos Positivos)
-    # Primero buscamos DEALBREAKERS explicitos que indican presencialidad
+
+    # 1. Dealbreakers: indicadores EXPLÍCITOS de presencialidad obligatoria
     dealbreakers = [
-        r"\bno remote\b", r"\bnot remote\b", r"\bonsite only\b", 
-        r"\boffice based\b", r"\bhybrid only\b", r"\bmust be in\b"
+        r"\bno remote\b", r"\bnot remote\b",
+        r"\bonsite only\b", r"\bon-site only\b", r"\bonsite required\b",
+        r"\boffice.?only\b", r"\bin.?office only\b", r"\bfully? in.?office\b",
+        r"\bhybrid only\b",
+        r"\blocal only\b", r"\blocal candidates only\b",
+        r"\bmust be local\b", r"\bmust live in\b",
+        r"\bin.person (only|required)\b",
+        r"\bno.?remote.?(work|position|role)\b",
     ]
-    
     for db in dealbreakers:
         if re.search(db, texto):
             return False
 
-    # Luego validamos que DIGA remote
-    if "remote" not in texto:
+    # 2. Validar que haya indicador de trabajo remoto (con sinónimos)
+    remote_indicators = [
+        "remote", "work from anywhere", "work from home", "wfh",
+        "distributed team", "fully distributed", "remote-first",
+        "anywhere in the world", "location independent",
+        "telecommute", "virtual position", "home-based",
+    ]
+    if not any(ind in texto for ind in remote_indicators):
         return False
 
-    # 2. Filtro de Red Flags (Ciudadanía, etc)
+    # 3. Red Flags de ciudadanía (ya filtradas antes de llegar aquí normalmente)
     for flag in red_flags:
         if flag in texto:
             return False
-            
-    # 3. Filtro de ROLES (Identidad) - "MUST HAVE"
-    # Si definimos roles explícitos (ej: "Product Manager"), la oferta DEBE tener al menos uno.
-    role_keywords = filtros_extra.get('role_keywords', [])
-    if role_keywords:
-        role_found = False
-        for role in role_keywords:
-            # Búsqueda de palabra completa para evitar falsos positivos parciales (ej: "Manager" en "Managerial")
-            # Usamos boundaries \b si es posible, o in simple.
-            # Dado que los roles pueden ser "Product Manager", 'in' está bien.
-            if role.lower() in texto:
-                role_found = True
-                break
-        
-        if not role_found:
-             return False
 
-    # 4. Filtro de SKILLS (Herramientas) - "NICE TO HAVE" / Validación Secundaria
-    # Ya sabemos que es el ROL correcto, ahora vemos si usa las TECNOLOGÍAS correctas.
-    # Si la lista de keywords está vacía, pasa. Si no, verificamos coincidencia.
-    keywords_clean = []
-    
-    if isinstance(keywords, list):
-        keywords_clean = [k.strip().lower() for k in keywords]
-    elif isinstance(keywords, str):
-         keywords_clean = [k.strip().lower() for k in keywords.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split()]
-    
-    if keywords_clean:
-         found = False
-         for k in keywords_clean:
-             if len(k) > 1 and k in texto: # len > 1 para evitar "C" o "R" sueltos falsos
-                 found = True
-                 break
-         
-         if not found:
-             return False
+    # 4. Filtro de ROL — usa role_synonyms si existen, si no role_keywords
+    # role_synonyms contiene todas las variantes posibles generadas por Gemini
+    role_variants = filtros_extra.get('role_synonyms', filtros_extra.get('role_keywords', []))
+    if role_variants:
+        role_found = any(variant.lower() in texto for variant in role_variants)
+        if not role_found:
+            return False
+
+    # 5. Filtro de SKILLS — solo obligatorio si keywords_are_hard_filter=True
+    # Para devs/data el stack técnico ES la identidad; para PMs/managers no.
+    usar_keywords_como_filtro = filtros_extra.get('keywords_are_hard_filter', False)
+
+    if usar_keywords_como_filtro:
+        keywords_clean = []
+        if isinstance(keywords, list):
+            keywords_clean = [k.strip().lower() for k in keywords if len(k.strip()) > 1]
+        elif isinstance(keywords, str):
+            keywords_clean = [k.strip().lower() for k in
+                              keywords.replace("(", "").replace(")", "")
+                              .replace("OR", "").replace("AND", "").split()
+                              if len(k.strip()) > 1]
+
+        if keywords_clean:
+            if not any(k in texto for k in keywords_clean):
+                return False
 
     return True
 

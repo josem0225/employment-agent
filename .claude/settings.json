@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/josemiguelrozobaez/Documents/develop/agent-offers/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/josemiguelrozobaez/Documents/develop/agent-offers"
+    ]
+  }
+}

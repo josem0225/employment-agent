@@ -53,11 +53,16 @@ def buscar_ofertas_yc(filtros_json):
     """
     print("\n🍊 INICIANDO MOTOR Y COMBINATOR JOBS...")
     
-    # 1. Preparar Keywords (Adapter Pattern)
+    # Role synonyms: todas las variantes del rol para matching en el título
+    role_variants = [v.lower() for v in filtros_json.get("role_synonyms", filtros_json.get("role_keywords", []))]
+
+    # Keywords técnicas: solo obligatorias si el stack ES la identidad del rol
+    usar_keywords_como_filtro = filtros_json.get("keywords_are_hard_filter", False)
     lista_keywords = filtros_json.get("keyword_list", [])
     if not lista_keywords:
         keywords_str = filtros_json.get("keywords", "").lower()
         lista_keywords = [k.strip() for k in keywords_str.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split() if len(k) > 2]
+    lista_keywords = [k.lower() for k in lista_keywords]
 
     ofertas_encontradas = []
 
@@ -76,28 +81,26 @@ def buscar_ofertas_yc(filtros_json):
             titulo = job['title']
             url = job['url']
             
-            # --- FILTRADO (Python Logic) ---
-            # En YC Jobs, el título suele tener toda la info: "Company (YC W21) is hiring a Senior Eng..."
+            # --- FILTRADO ---
+            # En YC Jobs el título contiene toda la info disponible.
             texto_completo = titulo.lower()
-            
-            # Filtro Ubicación (Simple check si menciona lugar)
-            # Si dice "San Francisco" y nuestro perfil es Remote, cuidado.
-            # Pero YC suele ser flexible. Si no dice "Onsite only", lo consideramos.
-            if "onsite in" in texto_completo:
-                # Si no menciona remote, dudoso.
-                if "remote" not in texto_completo:
+
+            # Filtro de presencialidad explícita
+            dealbreakers = ["onsite only", "on-site only", "in-office only", "local only", "no remote"]
+            if any(db in texto_completo for db in dealbreakers):
+                continue
+            if "onsite in" in texto_completo and "remote" not in texto_completo:
+                continue
+
+            # Filtro de ROL: al menos una variante del rol debe aparecer en el título
+            if role_variants:
+                if not any(v in texto_completo for v in role_variants):
                     continue
 
-            # Filtro Keywords
-            match_keyword = False
-            if lista_keywords:
-                for k in lista_keywords:
-                    if k.lower() in texto_completo:
-                        match_keyword = True
-                        break
-                
-                if not match_keyword:
-                    continue 
+            # Filtro de KEYWORDS: solo si el stack técnico es identidad del rol
+            if usar_keywords_como_filtro and lista_keywords:
+                if not any(k in texto_completo for k in lista_keywords):
+                    continue
 
             ofertas_encontradas.append({
                 "title": titulo,

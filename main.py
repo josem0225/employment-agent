@@ -62,9 +62,9 @@ def main():
     ofertas.extend(ofertas_yc)
     
     # --- MOTOR 6: WELLFOUND ---
-    print("\n[Paso 2f] Buscando ofertas en Wellfound...")
-    ofertas_wf = buscar_ofertas_wellfound(filtros)
-    ofertas.extend(ofertas_wf)
+    # print("\n[Paso 2f] Buscando ofertas en Wellfound...")
+    # ofertas_wf = buscar_ofertas_wellfound(filtros)
+    # ofertas.extend(ofertas_wf)
 
     # --- MOTOR 1: LINKEDIN (COMENTADO POR AHORA) ---
     print("\n[Paso 2] Buscando ofertas en LinkedIn...")

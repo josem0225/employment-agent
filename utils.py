@@ -12,21 +12,28 @@ def filtrar_por_ubicacion_estricta(ofertas):
     print("🌍 Validando restricciones geográficas estrictas...")
     
     # PATRONES DE EXCLUSIÓN (RED FLAGS)
-    # Si aparecen estos, es probable que no sirvan
+    # Solo patrones que indican RESTRICCIÓN EXPLÍCITA de ubicación o ciudadanía.
+    # Mencionar un país NO es red flag — una empresa de USA puede contratar remoto global.
     patrones_red = [
         r"\bUS only\b", r"\bUSA only\b", r"\bUnited States only\b",
         r"\bNorth America only\b", r"\bEurope only\b", r"\bUK only\b",
-        r"\bCanada only\b", r"\bEU only\b", r"\bUS citizen\b",
-        r"\bcitizenship\b", r"\bmust reside in\b", r"\bmust be located in\b",
-        r"\bU\.S\.\b", r"\bUnited States\b" # Cuidado con este, puede ser la empresa
+        r"\bCanada only\b", r"\bEU only\b",
+        r"\bUS citizen(ship)?\b", r"\bu\.s\. citizen(ship)?\b",
+        r"\bcitizenship required\b",
+        r"\bmust reside in\b", r"\bmust be located in\b", r"\bmust be based in\b",
+        r"\bauthorized to work in\b", r"\beligible to work in\b",
+        r"\bwork authorization required\b",
+        r"\bno visa sponsorship\b", r"\bvisa sponsorship (not|no longer) available\b",
     ]
-    
+
     # PATRONES DE SALVACIÓN (GREEN FLAGS)
-    # Si aparecen estos, ignoramos los Red Flags (ej: "US Company hiring Worldwide")
+    # Si aparecen estos, la oferta claramente está abierta a candidatos internacionales.
     patrones_green = [
         r"\bLATAM\b", r"\bLatin America\b", r"\bSouth America\b",
         r"\bWorldwide\b", r"\bGlobal\b", r"\bAnywhere\b",
-        r"\bRemote\s?Worker\b", r"\bRemote\s?Global\b"
+        r"\bRemote\s?Worker\b", r"\bRemote\s?Global\b",
+        r"\bopen to international\b", r"\binternational candidates\b",
+        r"\bvisa sponsorship (available|provided|offered)\b",
     ]
 
     ofertas_validas = []

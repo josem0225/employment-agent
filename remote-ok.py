@@ -21,18 +21,23 @@ def buscar_ofertas_remoteok(filtros_json):
     """
     print("\n📡 INICIANDO MOTOR REMOTE OK (Vía API)...")
     
-    # 1. Preparar Keywords (Adapter Pattern)
+    # Role synonyms: todas las variantes del rol para matching
+    role_variants = [v.lower() for v in filtros_json.get("role_synonyms", filtros_json.get("role_keywords", []))]
+
+    # Keywords técnicas: solo obligatorias si el stack ES la identidad del rol
+    usar_keywords_como_filtro = filtros_json.get("keywords_are_hard_filter", False)
     lista_keywords = filtros_json.get("keyword_list", [])
     if not lista_keywords:
-        # Fallback a limpiar el string si no hay lista
         keywords_str = filtros_json.get("keywords", "").lower()
         lista_keywords = [k.strip() for k in keywords_str.replace("(", "").replace(")", "").replace("OR", "").replace("AND", "").split() if len(k) > 2]
+    lista_keywords = [k.lower() for k in lista_keywords]
 
-    # Red Flags específicos
+    # Red Flags de ciudadanía/restricción explícita en descripción
     red_flags = [
-        "us citizen", "u.s. citizen", "citizenship required", 
-        "must reside in usa", "must reside in the us", 
-        "location: united states", "location: us"
+        "us citizen", "u.s. citizen", "citizenship required",
+        "must reside in usa", "must reside in the us",
+        "authorized to work in", "work authorization required",
+        "no visa sponsorship",
     ]
 
     ofertas_encontradas = []
@@ -61,32 +66,34 @@ def buscar_ofertas_remoteok(filtros_json):
             tags = job.get('tags', []) # RemoteOK tiene tags, útil
             location_api = job.get('location', '').lower()
             
-            # --- FILTRADO (Python Logic) ---
-            
-            # 1. Filtro Ubicación (Red Flags en campo location)
-            if any(flag in location_api for flag in ["united states", "usa only", "us only", "europe only", "uk only"]):
-                # Si pide explicitamente US/EU y no dice "worldwide" ni "latam", descartar
-                if "worldwide" not in location_api and "latam" not in location_api and "anywhere" not in location_api:
-                    continue
+            # --- FILTRADO ---
 
-            # 2. Filtro Red Flags en descripción
+            # 1. Filtro Ubicación: solo restricciones explícitas en campo location
+            location_restrictiva = any(flag in location_api for flag in ["only", "us only", "usa only", "europe only", "uk only", "canada only"])
+            location_abierta = any(flag in location_api for flag in ["worldwide", "latam", "anywhere", "global", "international"])
+            if location_restrictiva and not location_abierta:
+                continue
+
             texto_completo = (titulo + " " + descripcion).lower()
+            tags_lower = [t.lower() for t in tags]
+
+            # 2. Red Flags de ciudadanía en descripción
             if any(flag in texto_completo for flag in red_flags):
                 continue
-                
-            # 3. Filtro Keywords (Universal)
-            # Verificamos si CUALQUIERA de las keywords está presente
-            match_keyword = False
-            if lista_keywords:
-                # Chequeamos en titulo, descripcion O tags
-                for k in lista_keywords:
-                    k_lower = k.lower()
-                    if k_lower in texto_completo or k_lower in [t.lower() for t in tags]:
-                        match_keyword = True
-                        break
-                
+
+            # 3. Filtro de ROL: al menos una variante del rol debe aparecer
+            if role_variants:
+                if not any(v in texto_completo or v in titulo.lower() for v in role_variants):
+                    continue
+
+            # 4. Filtro de KEYWORDS: solo si el stack técnico es identidad del rol
+            if usar_keywords_como_filtro and lista_keywords:
+                match_keyword = any(
+                    k in texto_completo or k in tags_lower
+                    for k in lista_keywords
+                )
                 if not match_keyword:
-                    continue # No hizo match con ninguna tecnologia del perfil
+                    continue
             
             # Si pasa todos los filtros, es candidata
             ofertas_encontradas.append({

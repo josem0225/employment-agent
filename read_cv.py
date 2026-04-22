@@ -15,7 +15,7 @@ if api_key:
     # Usamos el modelo rápido y capaz que ya validamos
     model = genai.GenerativeModel('gemini-flash-latest')
 
-CV_FILE_PATH = r"/Users/josemiguelrozobaez/downloads/xime2.pdf"
+CV_FILE_PATH = r"/Users/josemiguelrozobaez/downloads/Cristotech.pdf"
 # CV_FILE_PATH = r"/Users/josemiguelrozobaez/downloads/cvJose.pdf"
 
 
@@ -62,16 +62,28 @@ def analizar_cv_para_busqueda(texto_cv):
     3. Si el perfil habla solo español: Prioriza "Spain", "LATAM" y "Remote".
     4. El objetivo es encontrar empresas dispuestas a contratar talento de LATAM/Extranjero.
     REGLAS PARA KEYWORDS:
-    1. "role_keywords" (INDENTIDAD): Deben ser TÍTULOS de cargo. Ej: "Product Manager", "Project Manager", "Product Owner".
-    2. "tech_keywords" (HERRAMIENTAS): Skills técnicas. Ej: "Jira", "SQL", "Agile".
-    3. SEPARA ESTRICTAMENTE. No pongas skills en role_keywords.
+    1. "role_synonyms" (IDENTIDAD COMPLETA): Todas las formas posibles en que el rol del candidato aparece en ofertas de empleo reales.
+       - Incluye: título exacto, abreviaciones, variantes sénior/junior/lead, títulos alternativos del mercado.
+       - Piensa como reclutador: ¿cómo publican este rol en LinkedIn, HN, RemoteOK, Indeed?
+       - Para Product Manager: ["Product Manager", "PM", "TPM", "Product Owner", "PO", "Head of Product", "VP of Product", "Director of Product", "Group PM", "GPM", "APM", "Product Lead", "Product Strategist"]
+       - Para Backend Dev: ["Backend Developer", "Backend Engineer", "Software Engineer", "SWE", "API Developer", "Full Stack Developer", "Node Developer", "Python Developer", "Software Developer", "Dev"]
+       - Para Data Analyst: ["Data Analyst", "Business Analyst", "BI Analyst", "Analytics Engineer", "Data Scientist", "Reporting Analyst", "Insights Analyst", "Data Engineer"]
+       - Para Scrum Master: ["Scrum Master", "Agile Coach", "Delivery Manager", "Agile Lead", "Agile Facilitator", "Iteration Manager", "Release Train Engineer"]
+       GENERA AL MENOS 12-15 VARIANTES para el rol específico del CV que estás analizando.
+    2. "role_keywords": Subset de 3-5 variantes principales (las más comunes en el mercado).
+    3. "keyword_list" (HERRAMIENTAS): Skills técnicas del candidato. Ej: "Jira", "SQL", "Python".
+    4. "keywords_are_hard_filter": true si el stack técnico ES la identidad del rol (Dev, Data Engineer, Designer).
+       false si las herramientas son secundarias al rol (PM, Scrum Master, Manager, Coach).
+       Regla práctica: si cambiar de Python a Java cambia fundamentalmente el perfil -> true. Si no -> false.
 
     FORMATO JSON ESPERADO:
     {{
         "keywords": "String con la query booleana optimizada (mezcla de roles y skills clave).",
-        "role_keywords": ["Lista de 3-5 strings OBLIGATORIOS que definen el rol. Ej: 'Product Manager', 'Project Manager'"],
-        "keyword_list": ["Lista de 5-7 strings con skills/tecnologías para filtrado secundario (tech_keywords). Ej: 'Jira', 'SQL', 'Python'"],
-        
+        "role_synonyms": ["Lista de 12-15 variantes del rol detectado, cubriendo todas las formas en que aparece en job postings"],
+        "role_keywords": ["Lista de 3-5 variantes principales del rol (subset de role_synonyms)"],
+        "keyword_list": ["Lista de 5-7 skills/tecnologías para filtrado secundario. Ej: 'Jira', 'SQL', 'Python'"],
+        "keywords_are_hard_filter": false,
+
         "target_locations": [
             "Lista de strings con las 10 mejores ubicaciones para buscar. LATAM SIEMPRE DEBE SER LA PRIMERA OPCION POR FAVOR",
             "Ejemplo 1: 'Remote'",
@@ -80,11 +92,11 @@ def analizar_cv_para_busqueda(texto_cv):
             "Ejemplo 4: 'Worldwide'",
             "Ejemplo 5: 'LATAM'"
         ],
-        
-        "is_remote": true, 
+
+        "is_remote": true,
         "job_type": "fulltime",
         "experience_level": "Seniority inferido (ej: Senior, Mid-Senior)",
-        "hours_old": 72, 
+        "hours_old": 72,
         "results_count": 50
     }}
 
